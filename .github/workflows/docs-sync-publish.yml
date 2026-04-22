@@ -14,7 +14,9 @@ permissions:
   contents: read
 
 jobs:
+  # Requires OPENCLAW_DOCS_SYNC_TOKEN; only the upstream org repo has the secret and push access.
   sync-publish-repo:
+    if: github.repository == 'openclaw/openclaw'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source repo
