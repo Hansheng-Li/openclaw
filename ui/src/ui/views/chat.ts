@@ -56,6 +56,7 @@ export type ChatProps = {
   showToolCalls: boolean;
   loading: boolean;
   sending: boolean;
+  creatingSession?: boolean;
   canAbort?: boolean;
   compactionStatus?: CompactionStatus | null;
   fallbackStatus?: FallbackStatus | null;
@@ -1511,8 +1512,9 @@ export function renderChat(props: ChatProps) {
                   <button
                     class="btn btn--ghost"
                     @click=${props.onNewSession}
-                    title="New session"
-                    aria-label="New session"
+                    title=${props.creatingSession ? "Creating session..." : "New session"}
+                    aria-label=${props.creatingSession ? "Creating session..." : "New session"}
+                    ?disabled=${props.creatingSession || !props.connected}
                   >
                     ${icons.plus}
                   </button>

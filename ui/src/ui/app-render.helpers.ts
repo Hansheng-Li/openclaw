@@ -16,7 +16,7 @@ import { ChatState, loadChatHistory } from "./controllers/chat.ts";
 import { loadSessions } from "./controllers/sessions.ts";
 import { icons } from "./icons.ts";
 import { iconForTab, pathForTab, titleForTab, type Tab } from "./navigation.ts";
-import { parseAgentSessionKey } from "./session-key.ts";
+import { parseAgentSessionKey, resolveAgentIdFromSessionKey } from "./session-key.ts";
 import { normalizeOptionalString } from "./string-coerce.ts";
 import type { ThemeMode } from "./theme.ts";
 import type { SessionsListResult } from "./types.ts";
@@ -92,6 +92,65 @@ function resetChatStateForSessionSwitch(state: AppViewState, sessionKey: string)
     sessionKey,
     lastActiveSessionKey: sessionKey,
   });
+}
+
+function buildNewChatLabel(now = new Date()): string {
+  const stamp = now.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const ms = String(now.getMilliseconds()).padStart(3, "0");
+  return `New Chat ${stamp}.${ms}`;
+}
+
+function isDuplicateSessionLabelError(err: unknown): boolean {
+  return String(err).toLowerCase().includes("label already in use");
+}
+
+export async function createNewChatSession(state: AppViewState) {
+  if (!state.client || !state.connected || state.chatCreatingSession) {
+    return;
+  }
+  const busy =
+    state.chatLoading || state.chatSending || Boolean(state.chatRunId) || state.chatStream !== null;
+  if (busy) {
+    return;
+  }
+  state.chatCreatingSession = true;
+  state.lastError = null;
+  try {
+    const createSession = (label: string) =>
+      state.client!.request<{ key?: string }>("sessions.create", {
+        agentId: resolveAgentIdFromSessionKey(state.sessionKey),
+        parentSessionKey: state.sessionKey,
+        label,
+      });
+
+    let result;
+    try {
+      result = await createSession(buildNewChatLabel());
+    } catch (err) {
+      if (!isDuplicateSessionLabelError(err)) {
+        throw err;
+      }
+      result = await createSession(
+        `${buildNewChatLabel()} ${Math.random().toString(36).slice(2, 6)}`,
+      );
+    }
+
+    const nextSessionKey = normalizeOptionalString(result?.key);
+    if (!nextSessionKey) {
+      throw new Error("Failed to create a new chat session.");
+    }
+    switchChatSession(state, nextSessionKey);
+  } catch (err) {
+    state.lastError = String(err);
+  } finally {
+    state.chatCreatingSession = false;
+  }
 }
 
 export function renderTab(state: AppViewState, tab: Tab, opts?: { collapsed?: boolean }) {
@@ -172,7 +231,7 @@ function renderCronFilterIcon(hiddenCount: number) {
 }
 
 export function renderChatSessionSelect(state: AppViewState) {
-  return renderChatSessionSelectBase(state, switchChatSession);
+  return renderChatSessionSelectBase(state, switchChatSession, createNewChatSession);
 }
 
 export function renderChatControls(state: AppViewState) {
