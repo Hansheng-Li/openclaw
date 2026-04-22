@@ -31,6 +31,7 @@ vi.mock("./controllers/sessions.ts", () => ({
 }));
 
 import {
+  createNewChatSession,
   isCronSessionKey,
   parseSessionKey,
   resolveAssistantAttachmentAuthToken,
@@ -456,6 +457,147 @@ describe("resolveSessionOptionGroups", () => {
     expect(labels).toContain("Deep Chat (alpha) / main · named-main");
     expect(labels).toContain("Coding (beta) / main");
     expect(labels).not.toContain("main");
+  });
+});
+
+describe("createNewChatSession", () => {
+  it("creates a dashboard session and switches to it", async () => {
+    const settings: AppViewState["settings"] = {
+      gatewayUrl: "",
+      token: "",
+      locale: "en",
+      sessionKey: "agent:main:main",
+      lastActiveSessionKey: "agent:main:main",
+      theme: "claw",
+      themeMode: "dark",
+      splitRatio: 0.6,
+      navWidth: 280,
+      navCollapsed: false,
+      navGroupsCollapsed: {},
+      borderRadius: 50,
+      chatFocusMode: false,
+      chatShowThinking: false,
+      chatShowToolCalls: true,
+    };
+    const request = vi.fn().mockResolvedValue({ key: "agent:main:dashboard:test-session" });
+    const state = {
+      client: { request },
+      connected: true,
+      sessionKey: "agent:main:main",
+      chatLoading: false,
+      chatSending: false,
+      chatCreatingSession: false,
+      chatMessage: "draft",
+      chatAttachments: [],
+      chatMessages: [{ role: "assistant", content: "old" }],
+      chatToolMessages: [],
+      chatStreamSegments: [],
+      chatThinkingLevel: null,
+      chatStream: null,
+      chatSideResult: null,
+      lastError: null,
+      compactionStatus: null,
+      fallbackStatus: null,
+      chatAvatarUrl: null,
+      chatQueue: [],
+      chatRunId: null,
+      chatSideResultTerminalRuns: new Set<string>(),
+      chatStreamStartedAt: null,
+      settings,
+      applySettings(next: typeof settings) {
+        state.settings = next;
+      },
+      loadAssistantIdentity: vi.fn(),
+      resetToolStream: vi.fn(),
+      resetChatScroll: vi.fn(),
+    } as unknown as AppViewState;
+
+    refreshChatAvatarMock.mockResolvedValue(undefined);
+    refreshSlashCommandsMock.mockResolvedValue(undefined);
+    loadChatHistoryMock.mockResolvedValue(undefined);
+    loadSessionsMock.mockResolvedValue(undefined);
+
+    await createNewChatSession(state);
+    await Promise.resolve();
+
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith(
+      "sessions.create",
+      expect.objectContaining({
+        agentId: "main",
+        parentSessionKey: "agent:main:main",
+      }),
+    );
+    expect(state.sessionKey).toBe("agent:main:dashboard:test-session");
+    expect(state.chatCreatingSession).toBe(false);
+    expect(loadChatHistoryMock).toHaveBeenCalledWith(state);
+  });
+
+  it("retries once when the generated label collides", async () => {
+    const settings: AppViewState["settings"] = {
+      gatewayUrl: "",
+      token: "",
+      locale: "en",
+      sessionKey: "agent:main:main",
+      lastActiveSessionKey: "agent:main:main",
+      theme: "claw",
+      themeMode: "dark",
+      splitRatio: 0.6,
+      navWidth: 280,
+      navCollapsed: false,
+      navGroupsCollapsed: {},
+      borderRadius: 50,
+      chatFocusMode: false,
+      chatShowThinking: false,
+      chatShowToolCalls: true,
+    };
+    const request = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("GatewayRequestError: label already in use"))
+      .mockResolvedValueOnce({ key: "agent:main:dashboard:test-session-2" });
+    const state = {
+      client: { request },
+      connected: true,
+      sessionKey: "agent:main:main",
+      chatLoading: false,
+      chatSending: false,
+      chatCreatingSession: false,
+      chatMessage: "",
+      chatAttachments: [],
+      chatMessages: [],
+      chatToolMessages: [],
+      chatStreamSegments: [],
+      chatThinkingLevel: null,
+      chatStream: null,
+      chatSideResult: null,
+      lastError: null,
+      compactionStatus: null,
+      fallbackStatus: null,
+      chatAvatarUrl: null,
+      chatQueue: [],
+      chatRunId: null,
+      chatSideResultTerminalRuns: new Set<string>(),
+      chatStreamStartedAt: null,
+      settings,
+      applySettings(next: typeof settings) {
+        state.settings = next;
+      },
+      loadAssistantIdentity: vi.fn(),
+      resetToolStream: vi.fn(),
+      resetChatScroll: vi.fn(),
+    } as unknown as AppViewState;
+
+    refreshChatAvatarMock.mockResolvedValue(undefined);
+    refreshSlashCommandsMock.mockResolvedValue(undefined);
+    loadChatHistoryMock.mockResolvedValue(undefined);
+    loadSessionsMock.mockResolvedValue(undefined);
+
+    await createNewChatSession(state);
+    await Promise.resolve();
+
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(state.sessionKey).toBe("agent:main:dashboard:test-session-2");
+    expect(state.lastError).toBeNull();
   });
 });
 

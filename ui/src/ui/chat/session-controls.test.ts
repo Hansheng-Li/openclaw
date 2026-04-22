@@ -105,6 +105,8 @@ function createChatHeaderState(
     chatQueue: [],
     chatMessages: [],
     chatLoading: false,
+    chatSending: false,
+    chatCreatingSession: false,
     chatThinkingLevel: null,
     lastError: null,
     chatAvatarUrl: null,
@@ -136,6 +138,19 @@ function flushTasks() {
 }
 
 describe("chat session controls", () => {
+  it("shows a visible new-chat button beside the session selector", () => {
+    const { state } = createChatHeaderState();
+    const onCreateSession = vi.fn();
+    const container = document.createElement("div");
+    render(renderChatSessionSelect(state, undefined, onCreateSession), container);
+
+    const button = container.querySelector<HTMLButtonElement>('button[title="New chat"]');
+    expect(button).not.toBeNull();
+    button?.click();
+    expect(onCreateSession).toHaveBeenCalledTimes(1);
+    expect(onCreateSession).toHaveBeenCalledWith(state);
+  });
+
   it("patches the current session model from the chat header picker", async () => {
     vi.stubGlobal(
       "fetch",

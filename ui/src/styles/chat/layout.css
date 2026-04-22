@@ -882,6 +882,11 @@
   max-width: 300px;
 }
 
+.chat-controls__session--key {
+  min-width: 120px;
+  max-width: 220px;
+}
+
 .chat-controls__session-row {
   display: flex;
   align-items: center;
@@ -892,6 +897,13 @@
 .chat-controls__model {
   min-width: 170px;
   max-width: 320px;
+}
+
+.chat-controls__new-chat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 
 .chat-controls__thinking {

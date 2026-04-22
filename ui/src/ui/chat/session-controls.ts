@@ -8,6 +8,7 @@ import {
 } from "../chat-model-select-state.ts";
 import { refreshVisibleToolsEffectiveForCurrentSession } from "../controllers/agents.ts";
 import { loadSessions } from "../controllers/sessions.ts";
+import { icons } from "../icons.ts";
 import { parseAgentSessionKey } from "../session-key.ts";
 import { normalizeLowercaseStringOrEmpty, normalizeOptionalString } from "../string-coerce.ts";
 import {
@@ -18,10 +19,12 @@ import {
 import type { SessionsListResult } from "../types.ts";
 
 type ChatSessionSwitchHandler = (state: AppViewState, nextSessionKey: string) => void;
+type ChatSessionCreateHandler = (state: AppViewState) => void | Promise<void>;
 
 export function renderChatSessionSelect(
   state: AppViewState,
   onSwitchSession: ChatSessionSwitchHandler = () => undefined,
+  onCreateSession: ChatSessionCreateHandler = () => undefined,
 ) {
   const sessionGroups = resolveSessionOptionGroups(state, state.sessionKey, state.sessionsResult);
   const modelSelect = renderChatModelSelect(state);
@@ -29,9 +32,16 @@ export function renderChatSessionSelect(
   const selectedSessionLabel =
     sessionGroups.flatMap((group) => group.options).find((entry) => entry.key === state.sessionKey)
       ?.label ?? state.sessionKey;
+  const createDisabled =
+    !state.connected ||
+    Boolean(state.chatCreatingSession) ||
+    state.chatLoading ||
+    state.chatSending ||
+    Boolean(state.chatRunId) ||
+    state.chatStream !== null;
   return html`
     <div class="chat-controls__session-row">
-      <label class="field chat-controls__session">
+      <label class="field chat-controls__session chat-controls__session--key">
         <select
           .value=${state.sessionKey}
           title=${selectedSessionLabel}
@@ -65,6 +75,20 @@ export function renderChatSessionSelect(
           )}
         </select>
       </label>
+      <button
+        class="btn btn--sm chat-controls__new-chat-btn"
+        title=${state.chatCreatingSession ? "Creating session..." : "New chat"}
+        aria-label=${state.chatCreatingSession ? "Creating session..." : "New chat"}
+        ?disabled=${createDisabled}
+        @click=${() => {
+          if (!createDisabled) {
+            void onCreateSession(state);
+          }
+        }}
+      >
+        ${icons.plus}
+        <span>New chat</span>
+      </button>
       ${modelSelect} ${thinkingSelect}
     </div>
   `;

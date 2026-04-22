@@ -11,6 +11,7 @@ import { refreshChatAvatar } from "./app-chat.ts";
 import { DEFAULT_CRON_FORM } from "./app-defaults.ts";
 import { renderUsageTab } from "./app-render-usage-tab.ts";
 import {
+  createNewChatSession,
   renderChatControls,
   renderChatMobileToggle,
   renderChatSessionSelect,
@@ -2203,6 +2204,7 @@ export function renderApp(state: AppViewState) {
               showToolCalls,
               loading: state.chatLoading,
               sending: state.chatSending,
+              creatingSession: Boolean(state.chatCreatingSession),
               compactionStatus: state.compactionStatus,
               fallbackStatus: state.fallbackStatus,
               assistantAvatarUrl: chatAvatarUrl,
@@ -2248,7 +2250,9 @@ export function renderApp(state: AppViewState) {
               onDismissSideResult: () => {
                 state.chatSideResult = null;
               },
-              onNewSession: () => state.handleSendChat("/new", { restoreDraft: true }),
+              onNewSession: () => {
+                void createNewChatSession(state);
+              },
               onClearHistory: async () => {
                 if (!state.client || !state.connected) {
                   return;
